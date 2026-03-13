@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>6 AI 员工系统 — 智能工作台</title>
+<meta name="description" content="基于 Claude 的 6 个 AI 员工系统：晨报助手、知识库、任务管理、内容策划、数据分析、记忆管理">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-0:#05070e;--bg-1:#0a0f1a;--bg-2:#111827;--bg-3:#1a2234;--bg-4:#222d42;
+  --bd:#1e2d4a;--bd-h:#2a3f66;
+  --t1:#f0f4f8;--t2:#94a3b8;--t3:#4a5568;
+  --ac:#6c9fff;--ac2:#4a7cff;--ac-g:rgba(108,159,255,.1);
+  --grn:#4ade80;--org:#fbbf24;--red:#fb7185;--pur:#c084fc;--teal:#2dd4bf;
+  --radius:10px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Noto Sans SC',system-ui,sans-serif;background:var(--bg-0);color:var(--t1)}
+
+/* ===== APP SHELL ===== */
+.app{display:grid;grid-template-columns:72px 240px 1fr;grid-template-rows:1fr;height:100vh}
+
+/* ===== ICON BAR (left rail) ===== */
+.rail{background:var(--bg-1);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;z-index:5}
+.rail-logo{font-size:24px;margin-bottom:12px;cursor:default;user-select:none}
+.rail-item{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;cursor:pointer;font-size:22px;transition:all .15s;position:relative;border:1px solid transparent}
+.rail-item:hover{background:var(--bg-3)}
+.rail-item.active{background:var(--ac-g);border-color:rgba(108,159,255,.2)}
+.rail-item .badge{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;border:2px solid var(--bg-1)}
+.rail-spacer{flex:1}
+.rail-bottom{display:flex;flex-direction:column;gap:4px;align-items:center}
+.rail-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;cursor:pointer;font-size:16px;background:none;border:1px solid var(--bd);color:var(--t2);transition:all .15s}
+.rail-btn:hover{background:var(--bg-3);color:var(--t1);border-color:var(--bd-h)}
+
+/* ===== SIDE PANEL ===== */
+.panel{background:var(--bg-1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:16px;border-bottom:1px solid var(--bd)}
+.panel-header h2{font-size:13px;font-weight:700;margin-bottom:2px}
+.panel-header p{font-size:11px;color:var(--t3);line-height:1.4}
+.panel-body{flex:1;overflow-y:auto;padding:10px}
+.panel-body::-webkit-scrollbar{width:4px}
+.panel-body::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+
+/* Agent detail card */
+.detail-section{margin-bottom:16px}
+.detail-label{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;padding:0 2px}
+.detail-chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);color:var(--t2);background:var(--bg-2)}
+.chip.mcp{border-color:rgba(74,222,128,.2);color:var(--grn);background:rgba(74,222,128,.06)}
+.chip.tool{border-color:rgba(108,159,255,.2);color:var(--ac);background:var(--ac-g)}
+.trigger-btn{font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--bd);color:var(--t1);background:var(--bg-3);cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;text-align:left;width:100%}
+.trigger-btn:hover{background:var(--bg-4);border-color:var(--bd-h)}
+.features-list{display:flex;flex-direction:column;gap:3px}
+.feature-item{font-size:11px;color:var(--t2);padding:3px 0}
+
+/* ===== MAIN CHAT ===== */
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg-0)}
+
+/* Chat topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--bd);background:var(--bg-1);min-height:52px}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.topbar-icon{font-size:24px}
+.topbar-name{font-size:14px;font-weight:700}
+.topbar-desc{font-size:10px;color:var(--t3)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.status-pill{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t2);padding:4px 10px;border-radius:12px;background:var(--bg-2);border:1px solid var(--bd)}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.status-dot.on{background:var(--grn);box-shadow:0 0 6px rgba(74,222,128,.4)}
+.status-dot.off{background:var(--t3)}
+.quota-text{font-size:10px;color:var(--t3)}
+
+/* Messages */
+.messages{flex:1;overflow-y:auto;padding:20px 20px 10px}
+.messages::-webkit-scrollbar{width:5px}
+.messages::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px 20px;animation:fadeUp .5s ease}
+.welcome-emoji{font-size:64px;margin-bottom:14px;filter:drop-shadow(0 4px 24px rgba(108,159,255,.2))}
+.welcome h3{font-size:20px;font-weight:800;margin-bottom:4px}
+.welcome p{font-size:12px;color:var(--t2);max-width:380px;line-height:1.7;margin-bottom:24px}
+.quick-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:420px}
+.quick-btn{font-size:11px;padding:8px 14px;border-radius:20px;border:1px solid var(--bd);background:var(--bg-2);color:var(--t2);cursor:pointer;font-family:inherit;transition:all .2s}
+.quick-btn:hover{border-color:var(--ac);color:var(--ac);background:var(--ac-g)}
+
+/* Message bubbles */
+.msg{margin-bottom:18px;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.msg-user{display:flex;justify-content:flex-end}
+.msg-user .bubble{background:linear-gradient(135deg,#152240,#1a2d52);border:1px solid rgba(108,159,255,.12);border-radius:14px 14px 4px 14px;padding:10px 15px;max-width:65%;font-size:13px;line-height:1.7}
+
+.msg-ai{display:flex;gap:10px;align-items:flex-start}
+.msg-ai .avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:var(--bg-2);border:1px solid var(--bd)}
+.msg-ai .bubble{background:var(--bg-2);border:1px solid var(--bd);border-radius:4px 14px 14px 14px;padding:12px 16px;max-width:78%;font-size:13px;line-height:1.85;color:var(--t1)}
+.msg-ai .bubble strong{color:var(--ac);font-weight:600}
+.msg-ai .bubble code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--bg-0);padding:1px 5px;border-radius:3px;border:1px solid var(--bd)}
+.msg-ai .bubble pre{background:var(--bg-0);border:1px solid var(--bd);border-radius:7px;padding:12px 14px;margin:10px 0;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.6}
+.msg-ai .bubble pre code{background:none;border:none;padding:0}
+
+/* Typing */
+.typing{display:flex;gap:4px;padding:6px 0}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--t3);animation:bounce 1.4s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-7px);opacity:1}}
+
+/* Input */
+.input-area{padding:10px 20px 14px;border-top:1px solid var(--bd);background:var(--bg-1)}
+.input-row{display:flex;gap:8px;align-items:flex-end}
+textarea.ipt{flex:1;background:var(--bg-0);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;color:var(--t1);font-size:13px;font-family:inherit;resize:none;min-height:42px;max-height:140px;line-height:1.55;transition:border .2s}
+textarea.ipt:focus{outline:none;border-color:var(--ac)}
+textarea.ipt::placeholder{color:var(--t3)}
+.send-btn{width:42px;height:42px;border-radius:10px;border:none;background:var(--ac2);color:#fff;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.send-btn:hover{background:var(--ac);transform:scale(1.04)}
+.send-btn:disabled{opacity:.25;cursor:not-allowed;transform:none}
+.input-footer{display:flex;justify-content:space-between;align-items:center;margin-top:5px;padding:0 2px}
+.input-hint{font-size:10px;color:var(--t3)}
+.input-cost{font-size:10px;color:var(--t3)}
+
+/* ===== MODALS ===== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;z-index:99;animation:fadeUp .2s ease}
+.modal{background:var(--bg-2);border:1px solid var(--bd);border-radius:16px;padding:28px;width:460px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h2{font-size:18px;font-weight:800;margin-bottom:4px}
+.modal .sub{font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:18px}
+.modal label{font-size:10px;font-weight:700;color:var(--t3);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.6px}
+.modal input[type=password],.modal input[type=text]{width:100%;background:var(--bg-0);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;color:var(--t1);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:14px;transition:border .2s}
+.modal input:focus{outline:none;border-color:var(--ac)}
+.modal .note{font-size:10px;color:var(--t3);background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.12);border-radius:7px;padding:8px 10px;margin-bottom:16px;line-height:1.6}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.mbtn{padding:8px 20px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--bd);transition:all .15s}
+.mbtn.pri{background:var(--ac2);color:#fff;border-color:var(--ac2)}
+.mbtn.pri:hover{background:var(--ac)}
+.mbtn.sec{background:transparent;color:var(--t2)}
+.mbtn.sec:hover{background:var(--bg-3)}
+.error-msg{font-size:11px;color:var(--red);margin-bottom:10px}
+
+/* ===== MOBILE ===== */
+@media(max-width:900px){
+  .app{grid-template-columns:60px 1fr}
+  .panel{display:none}
+}
+@media(max-width:600px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;bottom:0;left:0;right:0;flex-direction:row;height:60px;padding:0 8px;border-right:none;border-top:1px solid var(--bd);z-index:20;justify-content:center}
+  .rail-logo,.rail-spacer,.rail-bottom{display:none}
+  .rail-item{width:42px;height:42px;font-size:20px}
+  .main{padding-bottom:60px}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+// ========== AGENT DEFINITIONS ==========
+const AGENTS=[
+{id:"morning",name:"晨报助手 LALA",icon:"🌅",role:"Morning Brief",color:"#fbbf24",
+desc:"邮件摘要 · 日程提醒 · 市场快报 · AI新闻",
+triggers:["早安，给我今天的晨报","快速简报","本周一特别版晨报","收盘总结"],
+mcp:["Gmail","Calendar"],tools:["Web Search"],
+features:["📬 邮件智能分类(🔴🟡🟢)","📅 今日日程 + 冲突检测","📈 7大美股实时快报","🤖 AI新闻 TOP 3","💡 每日行动建议","📊 周一特别版 + 周五收盘版"],
+sys:`你是用户的个人晨报助手 LALA，一个专业高效且偶尔带点幽默的信息管家。
+
+当用户说"早安"、"晨报"或类似触发词时，执行完整晨报流程：
+
+1. 📬 邮件摘要：模拟生成5封邮件摘要，分为🔴紧急需回复/🟡重要/🟢信息类
+2. 📅 今日日程：生成4-5项日程，标注时间、参与人、准备事项
+3. 📈 市场快报：搜索AAPL/MSFT/NVDA/GOOGL/AMZN/TSLA/META最新股价与动态
+4. 🤖 AI新闻TOP3：搜索过去24小时AI重大新闻
+5. 💡 LALA建议：基于以上给出1-2条行动建议
+
+"快速简报"→只给邮件+日程
+"收盘总结"→本周市场表现+持仓涨跌+下周关注
+
+输出使用结构化排版，以━━━分隔线+emoji标记。中文回复。`},
+
+{id:"brain",name:"第二大脑",icon:"🧠",role:"Knowledge Base",color:"#c084fc",
+desc:"URL抓取 · 智能摘要 · 分类归档 · 关联分析",
+triggers:["帮我归档这个链接（请粘贴URL）","查找 AI Agent 相关知识","本周学了什么","展示知识地图"],
+mcp:["Google Drive"],tools:["Web Search","Web Fetch"],
+features:["🔗 URL自动抓取全文","📝 标准化知识卡片","🏷️ 6大分类体系自动标签","⭐ 关联度1-5评分","🔍 语义检索已有知识","📊 知识地图可视化"],
+sys:`你是知识库管理员"第二大脑"。核心职责是收集、整理、归档信息。
+
+当用户给URL时→生成知识卡片：
+---
+title / source / url / date_saved / category / tags / relevance(1-5)
+---
+## 核心观点（3-5句）
+## 关键要点（3-5条）
+## 金句摘录（1句）
+## 与我的关联（分析与用户工作的关系）
+## 行动建议
+## 关联知识
+
+分类体系：💰投资理财/🤖AI&技术/📝内容创作/🏢商业创业/🧠认知思维/🌍行业趋势
+
+"查找[关键词]"→模拟搜索知识库返回3-5条结果
+"知识地图"→生成分类统计+趋势分析
+"本周学了什么"→周度知识获取报告
+
+中文回复，结构化，善用emoji。`},
+
+{id:"tasks",name:"任务管理中心",icon:"✅",role:"Task Manager",color:"#4ade80",
+desc:"任务看板 · 优先排序 · 进度追踪 · 周报生成",
+triggers:["今天做什么","展示任务看板","新任务：完成博客文章，截止周五","生成本周周报"],
+mcp:["Calendar"],tools:["Artifacts"],
+features:["📋 四列看板(待办→进行中→验收→完成)","🎯 AI智能优先级排序","⏰ 逾期自动提醒","📊 完成率数据统计","🗓️ Calendar日程联动","📈 周报自动生成"],
+sys:`你是任务管理员。维护一个模拟任务系统用于演示。
+
+内置示例任务数据：
+- 🔴 完成Q1投资组合复盘报告（截止明天，进行中80%）
+- 🟡 写作：AI Agent工具评测文章（截止周五，待办）
+- 🟡 更新知识库分类标签体系（截止本周，进行中40%）
+- 🔵 研究OpenClaw最新更新功能（下周，待办）
+- 🔵 录制YouTube教程视频脚本（下周三，待办）
+- ✅ 设置晨报自动化流程（已完成）
+- ✅ 整理3月投资笔记（已完成）
+
+"今天做什么"→按🥇必须完成/🥈尽量推进/🥉有空处理排列
+"看板"→四列展示所有任务
+"新任务：[描述]"→解析并创建任务卡片（名称、截止、优先级、子任务拆解）
+"周报"→完成数/进行中/新增/逾期/完成率/亮点/下周重点
+
+每次对话开始主动提醒逾期和今日到期任务。中文，结构化。`},
+
+{id:"content",name:"内容策划管家",icon:"📝",role:"Content Strategist",color:"#6c9fff",
+desc:"趋势研究 · 创意生成 · 竞品分析 · 内容日历",
+triggers:["本周写什么","写作大纲：Claude Projects实战教程","分析AI自动化领域爆款内容","生成下月内容日历"],
+mcp:[],tools:["Web Search","Artifacts"],
+features:["💡 基于搜索趋势的创意生成","🔍 竞品内容策略分析","✍️ SEO优化写作大纲","📅 月度内容日历看板","📊 爆款成功因素拆解","🎯 差异化角度建议"],
+sys:`你是内容策划管家。用户是内容创作者，关注AI工具、投资、效率化。
+
+"本周写什么"→完整流程：
+1. 搜索AI/投资/效率领域近7天热门话题
+2. 生成3-5个内容创意卡片（主题、类型、目标关键词、预估价值⭐1-5、差异化角度、大纲预览）
+3. 推荐最值得立即创作的2篇+理由
+
+"写作大纲[主题]"→完整大纲：
+SEO配置(关键词+Meta Description) + 引言策略 + 3-4个章节(各含论点+案例+配图建议) + CTA + 分发策略
+
+"分析竞品/爆款"→搜索该领域高互动内容，分析标题套路、成功要素、差异化机会
+
+中文，结构化输出。`},
+
+{id:"data",name:"数据分析中心",icon:"📊",role:"Data Analyst",color:"#fb7185",
+desc:"持仓分析 · 市场扫描 · 流量报告 · 可视化",
+triggers:["市场扫描","持仓分析","对比 NVDA vs AMD","本周投资复盘"],
+mcp:[],tools:["Web Search","Code Execution"],
+features:["💰 投资组合全景分析","📈 7大美股实时扫描","🔍 标的对比深度分析","📉 风险评估+行业分散度","💎 股息收益率汇总","⚠️ 免责声明自动附加"],
+sys:`你是数据分析师，专注投资组合和市场数据分析。
+
+"持仓分析"→搜索AAPL/MSFT/NVDA/GOOGL/AMZN/TSLA/META最新价格，模拟持仓数据生成：
+总持仓概览、各标的涨跌表格、行业分布、股息收益、风险评估、操作建议
+
+"市场扫描"→搜索S&P500/NASDAQ/VIX + 关注标的速报表格 + 重要事件 + 行动建议
+
+"对比 A vs B"→双标的全面对比（估值、成长性、股息、风险）
+
+所有输出结构化+表格。使用搜索获取真实数据。
+⚠️ 每次输出末尾附加：免责声明：以上内容仅供参考，不构成投资建议。
+
+中文回复。`},
+
+{id:"memory",name:"记忆管理中心",icon:"🧬",role:"Memory Manager",color:"#2dd4bf",
+desc:"三层记忆 · 记忆体检 · 知识蒸馏 · 记忆减脂",
+triggers:["记忆体检","我是谁","记住：我最近在研究AI Agent部署方案","执行记忆减脂"],
+mcp:["Google Drive"],tools:[],
+features:["🔴 热记忆管理(核心身份)","🟡 暖记忆维护(工作上下文)","🔵 冷记忆归档(长期存储)","🧹 记忆减脂(过期清理)","🧪 知识蒸馏(模式提炼)","📊 记忆健康评分"],
+sys:`你是记忆管理员，管理三层记忆体系。使用以下演示数据：
+
+🔴 热记忆（核心身份）：
+- 身份：内容创作者+投资者，关注AI效率工具
+- 当前项目：1)6AI员工系统搭建 2)Q1投资复盘 3)YouTube频道内容规划
+- 偏好：简洁专业、数据驱动、中文为主
+- 工具：Claude/n8n/Notion/Google生态
+
+🟡 暖记忆（近期上下文）：
+- 3/10决策：将NVDA仓位从20%降至15%
+- 3/8会议：与合作方讨论AI课程合作
+- 3/5发现：OpenClaw记忆系统值得借鉴
+- 本周重点：完成AI Agent工具评测文章
+
+🔵 冷记忆（长期存储）：12份研究报告、8份投资复盘、5份年度总结
+
+"记忆体检"→三层状态报告+需更新项+建议+健康评分(0-100)
+"我是谁"→展示完整热记忆画像
+"记住：[内容]"→归类到对应层
+"记忆减脂"→过期清理+知识蒸馏+热记忆刷新+维护报告
+
+中文回复，结构化。`}
+];
+
+// ========== STATE ==========
+let S={
+  agent:AGENTS[0],
+  convos:{},
+  loading:false,
+  modal:null, // null | 'access'
+  accessCode:localStorage.getItem('6ai_access')||'',
+  verified:false,
+  error:'',
+  rateLimitRemaining:60,
+};
+AGENTS.forEach(a=>S.convos[a.id]=[]);
+
+// Check if already verified
+if(S.accessCode) S.verified=true;
+
+// ========== API ==========
+async function callAPI(messages,system){
+  const res=await fetch('/api/chat',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-access-code':S.accessCode
+    },
+    body:JSON.stringify({messages,system,model:'claude-sonnet-4-20250514'})
+  });
+
+  const data=await res.json();
+
+  if(!res.ok){
+    if(res.status===401){
+      S.verified=false;
+      S.accessCode='';
+      localStorage.removeItem('6ai_access');
+      throw new Error('ACCESS_DENIED');
+    }
+    throw new Error(data.error||data.message||`错误 ${res.status}`);
+  }
+
+  if(data.rateLimit) S.rateLimitRemaining=data.rateLimit.remaining;
+
+  return data.content.map(c=>c.text||'').join('\n');
+}
+
+// ========== RENDER ==========
+function R(){
+  const a=S.agent, msgs=S.convos[a.id];
+  document.getElementById('app').innerHTML=`
+  <!-- RAIL -->
+  <div class="rail">
+    <div class="rail-logo">⚡</div>
+    ${AGENTS.map(ag=>`
+      <div class="rail-item ${ag.id===a.id?'active':''}" onclick="pick('${ag.id}')" title="${ag.name}">
+        ${ag.icon}
+        ${S.convos[ag.id].length?`<div class="badge" style="background:${ag.color}"></div>`:''}
+      </div>
+    `).join('')}
+    <div class="rail-spacer"></div>
+    <div class="rail-bottom">
+      <button class="rail-btn" onclick="S.modal='access';R()" title="设置">⚙️</button>
+    </div>
+  </div>
+
+  <!-- PANEL -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>${a.icon} ${a.name}</h2>
+      <p>${a.desc}</p>
+    </div>
+    <div class="panel-body">
+      ${a.mcp.length?`
+      <div class="detail-section">
+        <div class="detail-label">MCP 连接</div>
+        <div class="detail-chips">${a.mcp.map(m=>`<span class="chip mcp">${m}</span>`).join('')}</div>
+      </div>`:''}
+      ${a.tools.length?`
+      <div class="detail-section">
+        <div class="detail-label">启用工具</div>
+        <div class="detail-chips">${a.tools.map(t=>`<span class="chip tool">${t}</span>`).join('')}</div>
+      </div>`:''}
+      <div class="detail-section">
+        <div class="detail-label">快捷指令</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${a.triggers.map(t=>`<button class="trigger-btn" onclick="send('${esc(t)}')">${t}</button>`).join('')}
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心功能</div>
+        <div class="features-list">
+          ${a.features.map(f=>`<div class="feature-item">${f}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-icon">${a.icon}</span>
+        <div>
+          <div class="topbar-name">${a.name}</div>
+          <div class="topbar-desc">${a.role}</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="status-pill">
+          <span class="status-dot ${S.verified?'on':'off'}"></span>
+          ${S.verified?'已连接':'未连接'}
+        </div>
+        <span class="quota-text">${S.rateLimitRemaining}/60 次</span>
+      </div>
+    </div>
+
+    <div class="messages" id="msgs">
+      ${msgs.length===0?`
+      <div class="welcome">
+        <div class="welcome-emoji">${a.icon}</div>
+        <h3>${a.name}</h3>
+        <p>${a.desc}。<br>点击下方指令开始体验，或直接输入你的问题。</p>
+        <div class="quick-grid">
+          ${a.triggers.map(t=>`<button class="quick-btn" onclick="send('${esc(t)}')">${t}</button>`).join('')}
+        </div>
+      </div>
+      `:msgs.map(m=>m.role==='user'?`
+        <div class="msg msg-user"><div class="bubble">${he(m.content)}</div></div>
+      `:`
+        <div class="msg msg-ai">
+          <div class="avatar">${a.icon}</div>
+          <div class="bubble">${fmt(m.content)}</div>
+        </div>
+      `).join('')}
+      ${S.loading?`
+        <div class="msg msg-ai">
+          <div class="avatar">${a.icon}</div>
+          <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>
+        </div>
+      `:''}
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea class="ipt" id="ipt" rows="1" placeholder="输入指令与 ${a.name} 对话..." onkeydown="kd(event)" oninput="ar(this)"></textarea>
+        <button class="send-btn" onclick="sendInput()" ${S.loading?'disabled':''}>↑</button>
+      </div>
+      <div class="input-footer">
+        <span class="input-hint">Enter 发送 · Shift+Enter 换行</span>
+        <span class="input-cost">${S.verified?'✓ Claude API':'⚠️ 请先设置访问密码'}</span>
+      </div>
+    </div>
+  </div>
+
+  ${S.modal==='access'?renderAccessModal():''}
+  `;
+
+  const el=document.getElementById('msgs');
+  if(el) el.scrollTop=el.scrollHeight;
+}
+
+function renderAccessModal(){
+  return `
+  <div class="overlay" onclick="if(event.target===this){S.modal=null;R()}">
+    <div class="modal">
+      <h2>🔐 访问设置</h2>
+      <p class="sub">输入访问密码以使用 AI 员工系统。密码由站长提供。</p>
+      <div class="note">🔒 密码仅保存在浏览器本地。所有对话通过安全的服务端代理调用 Claude API，你的密码不会用于任何其他用途。</div>
+      ${S.error?`<div class="error-msg">❌ ${S.error}</div>`:''}
+      <label>访问密码</label>
+      <input type="password" id="codeInput" value="${S.accessCode}" placeholder="输入访问密码..." onkeydown="if(event.key==='Enter')saveCode()"/>
+      <div class="modal-btns">
+        <button class="mbtn sec" onclick="S.modal=null;R()">取消</button>
+        <button class="mbtn pri" onclick="saveCode()">连接</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ========== HELPERS ==========
+function he(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function esc(s){return s.replace(/'/g,"\\'")}
+function fmt(t){
+  let h=he(t);
+  h=h.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>');
+  h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+  h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  h=h.replace(/\n/g,'<br>');
+  return h;
+}
+function ar(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px'}
+function kd(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendInput()}}
+
+// ========== ACTIONS ==========
+function pick(id){S.agent=AGENTS.find(a=>a.id===id);R()}
+
+async function saveCode(){
+  const code=document.getElementById('codeInput').value.trim();
+  if(!code){S.error='请输入访问密码';R();return}
+
+  S.accessCode=code;
+  S.error='';
+
+  // Test the code with a minimal request
+  try{
+    const res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-access-code':code},
+      body:JSON.stringify({messages:[{role:'user',content:'hi'}],system:'Reply with: OK',model:'claude-haiku-4-5-20251001'})
+    });
+    if(res.status===401){
+      S.error='访问密码错误，请重试';S.verified=false;R();return;
+    }
+    if(!res.ok){
+      const d=await res.json().catch(()=>({}));
+      S.error=d.error||d.message||'连接失败';R();return;
+    }
+    S.verified=true;
+    localStorage.setItem('6ai_access',code);
+    S.modal=null;
+    R();
+  }catch(err){
+    S.error='网络错误：'+err.message;R();
+  }
+}
+
+function sendInput(){
+  const el=document.getElementById('ipt');
+  if(!el)return;
+  const t=el.value.trim();
+  if(!t)return;
+  send(t);
+}
+
+async function send(text){
+  if(S.loading)return;
+
+  if(!S.verified){S.modal='access';R();return}
+
+  const conv=S.convos[S.agent.id];
+  conv.push({role:'user',content:text});
+  S.loading=true;
+  R();
+
+  try{
+    const apiMsgs=conv.slice(-20).map(m=>({role:m.role,content:m.content}));
+    const reply=await callAPI(apiMsgs,S.agent.sys);
+    conv.push({role:'assistant',content:reply});
+  }catch(err){
+    if(err.message==='ACCESS_DENIED'){
+      conv.push({role:'assistant',content:'🔐 访问密码已失效，请点击左下角 ⚙️ 重新输入。'});
+      S.modal='access';
+    }else{
+      conv.push({role:'assistant',content:`❌ 出错了：${err.message}\n\n请稍后重试，或联系管理员。`});
+    }
+  }
+
+  S.loading=false;
+  R();
+}
+
+// ========== INIT ==========
+R();
+if(!S.verified) setTimeout(()=>{S.modal='access';R()},600);
+</script>
+</body>
+</html>

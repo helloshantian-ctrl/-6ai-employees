@@ -1,0 +1,13 @@
+{
+  "name": "6ai-employee-system",
+  "version": "1.0.0",
+  "description": "6 AI Employee System powered by Claude — 基于Claude的6个AI员工智能工作台",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site, no build needed'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": ["ai", "claude", "agent", "productivity"],
+  "license": "MIT"
+}
