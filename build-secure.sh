@@ -43,6 +43,6 @@ cat > .vercel/output/functions/_middleware.func/.vc-config.json << 'ENDVC'
 ENDVC
 
 cat > .vercel/output/config.json << 'ENDCFG'
-{"version":3,"routes":[{"src":"/(.*)", "headers":{"X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=()"}, "continue":true}]}
+{"version":3,"routes":[{"src":"/(.*)", "middlewarePath":"_middleware", "continue":true},{"src":"/(.*)", "headers":{"X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=()"}, "continue":true}]}
 ENDCFG
 echo "Done"
