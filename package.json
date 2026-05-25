@@ -4,6 +4,7 @@
   "description": "AI 自动化信息聚合 + 6 AI 员工聊天平台。采集 (Email/RSS/API/Scrape) → 总结 → 多渠道分发。",
   "private": true,
   "scripts": {
+    "demo": "node demo/server.js",
     "dev": "node test-server.js",
     "build": "echo 'Vercel handles serverless functions automatically'",
     "deploy": "vercel --prod"
