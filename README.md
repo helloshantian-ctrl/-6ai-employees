@@ -1,96 +1,121 @@
-# ⚡ 6 AI 员工系统
+# ⚡ AI 信息聚合平台 + 6 AI 员工系统
 
-基于 Claude API 的 6 个 AI 员工智能工作台。复刻追日Gucci OpenClaw 系统，零服务器即可部署。
+一个由 Claude 驱动的 **AI 自动化信息平台**，把你订阅的高端付费源 (WSJ, The Information, Bloomberg, Substack...) 自动采集 → AI 总结 → 按用户偏好推送到 **邮件 / Web / Slack / Discord / 飞书 / 企业微信**。
 
-## 🤖 6 个 AI 员工
+原"6 AI 员工"聊天工作台 (`/`) 保留不动。
 
-| # | 员工 | 职能 |
-|---|------|------|
-| 🌅 | 晨报助手 LALA | 邮件摘要 · 日程提醒 · 市场快报 · AI新闻 |
-| 🧠 | 第二大脑 | URL抓取 · 智能摘要 · 分类归档 · 关联分析 |
-| ✅ | 任务管理中心 | 任务看板 · 优先排序 · 进度追踪 · 周报 |
-| 📝 | 内容策划管家 | 趋势研究 · 创意生成 · 竞品分析 · 内容日历 |
-| 📊 | 数据分析中心 | 持仓分析 · 市场扫描 · 可视化图表 |
-| 🧬 | 记忆管理中心 | 三层记忆 · 记忆体检 · 知识蒸馏 |
+## ✨ 能力
 
-## 🚀 一键部署到 Vercel
+| 模块 | 功能 |
+|------|------|
+| 📥 采集 | Email Newsletter inbound · RSS (带 cookie/Basic Auth) · 第三方 API · 登录态抓取 |
+| 🧠 处理 | Claude 总结（briefing / deepdive / bullets 三种风格） · 自动话题标签 · 内容哈希去重 |
+| 👥 用户 | 多用户 · 各自的话题/源/频次/风格 · 每用户多个分发目标 |
+| 📤 分发 | Email (Resend) · Slack · Discord · 飞书 · 企业微信 · Web Dashboard |
+| ⚙️ 运维 | Vercel Cron 自动跑 · Admin 后台手动触发 · ingest_jobs 审计日志 |
+| 🔒 安全 | HTTP Basic auth 仪表盘 · Admin Token API · Cron Secret · 安全 HTTP headers |
 
-### 前置条件
-- [Anthropic API Key](https://console.anthropic.com/settings/keys)
-- [Vercel 账号](https://vercel.com)（免费）
-- Git
+## 🏗 架构
 
-### 部署步骤
-
-```bash
-# 1. 克隆项目
-git clone <your-repo-url>
-cd 6ai-employee-system
-
-# 2. 安装 Vercel CLI
-npm i -g vercel
-
-# 3. 登录 Vercel
-vercel login
-
-# 4. 部署（首次会创建项目）
-vercel
-
-# 5. 设置环境变量
-vercel env add ANTHROPIC_API_KEY     # 粘贴你的 sk-ant-api03-... Key
-vercel env add ACCESS_PASSWORD        # 设置一个访问密码（用户需要输入这个才能使用）
-
-# 6. 正式部署
-vercel --prod
+```
+ingest (Email/RSS/API/Scrape)
+   → articles (Postgres，content_hash 去重)
+   → summaries (Claude 缓存)
+   → digests (按用户偏好编排)
+   → deliveries (多渠道分发)
 ```
 
-### 环境变量说明
-
-| 变量名 | 必填 | 说明 |
-|--------|------|------|
-| `ANTHROPIC_API_KEY` | ✅ | Anthropic API Key，在 console.anthropic.com 获取 |
-| `ACCESS_PASSWORD` | 可选 | 访问密码，设置后用户需要输入密码才能使用。不设置则所有人可直接使用 |
+详细见 [`docs/architecture.md`](docs/architecture.md)。
 
 ## 📁 项目结构
 
 ```
-6ai-vercel/
+.
 ├── api/
-│   └── chat.js          # Vercel Serverless Function（API 代理）
+│   ├── chat.js                 # 原 6AI 聊天代理 (保持不变)
+│   ├── articles/{list,get}.js
+│   ├── sources/{list,upsert}.js
+│   ├── users/{list,upsert}.js
+│   ├── ingest/
+│   │   ├── email.js            # 入站邮件 webhook (Resend / Postmark)
+│   │   ├── rss.js              # 拉付费 RSS feed
+│   │   ├── api-import.js       # 第三方 API 推数据进来
+│   │   └── scrape.js           # 调外部 Playwright worker
+│   ├── summarize/run.js        # AI 增量总结
+│   ├── digest/{generate,send,list}.js
+│   └── cron/tick.js            # 调度入口
+├── lib/
+│   ├── supabase.js  claude.js  auth.js  http.js
+│   ├── article.js   topic.js   summarize.js   feed-parser.js
+│   └── deliverers/             # 6 个渠道 + dispatcher
+├── db/schema.sql               # Postgres schema
 ├── public/
-│   └── index.html       # 前端单页应用
-├── package.json
-├── vercel.json          # Vercel 路由配置
-└── README.md
+│   ├── index.html              # 6 AI 员工聊天 (原有)
+│   ├── dashboard.html          # 简报 dashboard (新)
+│   └── admin.html              # 管理后台 (新)
+├── middleware.js               # Basic auth 仪表盘
+├── vercel.json                 # 含 Cron 配置
+└── docs/{architecture,sources,deployment}.md
 ```
 
-## 🔒 安全特性
+## 🚀 快速开始
 
-- **API Key 隐藏**：Key 只存在服务端环境变量，前端完全不暴露
-- **访问密码**：可设置密码防止未授权访问
-- **速率限制**：每 IP 每小时 60 次请求上限
-- **模型白名单**：只允许调用指定模型
-- **消息条数限制**：单次最多 30 条对话上下文
+详见 [`docs/deployment.md`](docs/deployment.md)，简化版：
 
-## 💰 费用估算
+```bash
+# 1. Supabase 建项目, 在 SQL editor 跑 db/schema.sql
+# 2. 拷贝环境变量
+cp .env.example .env.local
+# 3. Vercel 部署
+vercel env add ANTHROPIC_API_KEY
+vercel env add SUPABASE_URL
+vercel env add SUPABASE_SERVICE_ROLE
+vercel env add ADMIN_TOKEN       # openssl rand -hex 32
+vercel env add CRON_SECRET       # openssl rand -hex 32
+vercel env add AUTH_USERNAME
+vercel env add AUTH_PASSWORD
+vercel --prod
+```
 
-使用 Claude Sonnet 模型：
-- 每次对话约 $0.02-0.05
-- 个人使用（每天10次）：约 $9/月
-- 小团队（每天50次）：约 $45/月
+然后：
 
-节省成本：可在 `api/chat.js` 中将模型改为 `claude-haiku-4-5-20251001`（便宜约10倍）
+1. 打开 `https://<你的域名>/admin.html`
+2. 输入 ADMIN_TOKEN
+3. 在 "内容源" tab 添加 RSS / 配置 Inbound Email（见 [`docs/sources.md`](docs/sources.md)）
+4. 在 "用户与订阅" 创建用户 + 配置分发目标
+5. "手动触发" 跑一次 "🌀 完整流水线" 验证
+6. 用户访问 `https://<你的域名>/dashboard.html` 查看简报流
 
-## 📝 自定义
+## ⏰ Cron 默认调度
 
-### 修改 AI 员工角色
-编辑 `public/index.html` 中的 `AGENTS` 数组，修改每个员工的 `sys`（System Prompt）字段。
+`vercel.json` 中：
 
-### 添加新员工
-在 `AGENTS` 数组中添加新对象，格式参照已有员工。
+| 频率                    | 任务                                   |
+|------------------------|----------------------------------------|
+| 每 15 分钟              | 采集 (RSS + Scrape)                    |
+| 每 15 分钟 (偏移 5)     | AI 增量总结                            |
+| 每小时                  | 生成 + 发送 digest                     |
 
-### 修改速率限制
-编辑 `api/chat.js` 中的 `RATE_LIMIT` 常量。
+可按需调整。
+
+## 🤖 模型与成本
+
+- 默认 `claude-sonnet-4-6`（总结 / digest 编排）
+- 想省钱可改 `lib/claude.js` 的 `MODELS.default = MODELS.fast` 使用 Haiku 4.5
+- 单篇 briefing 约 1-2K input + 300-500 output token，每千文章约 $1-3
+
+## 🔐 合规提示
+
+WSJ / The Information / Bloomberg 都是付费授权内容。本系统**不**做无授权爬取：
+- 推荐通过 **你自己邮箱订阅** newsletter，转发到 Resend Inbound
+- 推荐使用 **你自己账号的 RSS token / cookie**，存进 source.config
+- 抓取式接入仅作为最后手段，请确认你的订阅条款允许
+
+## 📚 文档
+
+- [docs/architecture.md](docs/architecture.md) — 整体架构 + 数据流
+- [docs/sources.md](docs/sources.md) — 4 种采集方式详细接入步骤
+- [docs/deployment.md](docs/deployment.md) — Vercel + Supabase 部署
 
 ## License
 

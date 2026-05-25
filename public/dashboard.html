@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Briefing · Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📰</text></svg>">
+<style>
+:root{
+  --bg-0:#05070e;--bg-1:#0a0f1a;--bg-2:#111827;--bg-3:#1a2234;
+  --bd:#1e2d4a;--bd-h:#2a3f66;--t1:#f0f4f8;--t2:#94a3b8;--t3:#64748b;
+  --ac:#6c9fff;--ac-g:rgba(108,159,255,.1);
+  --grn:#4ade80;--org:#fbbf24;--red:#fb7185;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',system-ui,sans-serif;background:var(--bg-0);color:var(--t1);line-height:1.6}
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.side{background:var(--bg-1);border-right:1px solid var(--bd);padding:20px;overflow-y:auto}
+.brand{font-size:18px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.tagline{font-size:11px;color:var(--t3);margin-bottom:24px}
+.side h3{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1.5px;margin:20px 0 8px}
+.filter-btn{display:block;width:100%;padding:8px 12px;border-radius:6px;background:none;color:var(--t2);border:none;text-align:left;cursor:pointer;font-size:13px;margin-bottom:2px}
+.filter-btn:hover{background:var(--bg-3);color:var(--t1)}
+.filter-btn.active{background:var(--ac-g);color:var(--ac)}
+.search{width:100%;padding:8px 10px;border:1px solid var(--bd);background:var(--bg-2);color:var(--t1);border-radius:6px;font-size:13px;margin-bottom:12px}
+.main{padding:24px 32px;overflow-y:auto;max-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.header h1{font-size:22px;font-weight:700}
+.header .meta{font-size:12px;color:var(--t3)}
+.tab{display:inline-flex;gap:4px;background:var(--bg-2);border:1px solid var(--bd);border-radius:8px;padding:3px;margin-bottom:18px}
+.tab button{padding:6px 14px;border:none;background:none;color:var(--t2);font-size:13px;border-radius:5px;cursor:pointer}
+.tab button.active{background:var(--ac);color:#fff}
+.list{display:grid;gap:12px}
+.card{background:var(--bg-1);border:1px solid var(--bd);border-radius:10px;padding:16px 20px;transition:border .15s}
+.card:hover{border-color:var(--bd-h)}
+.card-title{font-size:15px;font-weight:600;margin-bottom:4px;line-height:1.4}
+.card-title a{color:var(--t1);text-decoration:none}
+.card-title a:hover{color:var(--ac)}
+.card-meta{font-size:11px;color:var(--t3);margin-bottom:10px}
+.card-meta span{margin-right:10px}
+.chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;background:var(--ac-g);color:var(--ac);margin-right:4px}
+.one-liner{color:var(--t2);font-size:13px;margin:6px 0;font-style:italic}
+.bullets{margin:8px 0 0;padding-left:20px;font-size:13px;color:var(--t2)}
+.bullets li{margin:2px 0}
+.empty{text-align:center;padding:60px;color:var(--t3)}
+.loading{text-align:center;padding:40px;color:var(--t3)}
+.digest{background:var(--bg-1);border:1px solid var(--bd);border-radius:10px;padding:20px 28px;margin-bottom:16px}
+.digest-md{font-size:14px;color:var(--t2);line-height:1.7}
+.digest-md h1{font-size:18px;color:var(--t1);margin:14px 0 6px}
+.digest-md h2{font-size:15px;color:var(--t1);margin:18px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+.digest-md h3{font-size:13px;color:var(--t1);margin:10px 0 2px}
+.digest-md ul{padding-left:20px;margin:4px 0}
+.digest-md a{color:var(--ac);text-decoration:none}
+.digest-md blockquote{border-left:3px solid var(--ac);padding:2px 12px;color:var(--t1);margin:6px 0;background:var(--ac-g);border-radius:4px}
+.digest-md hr{border:none;border-top:1px solid var(--bd);margin:14px 0}
+.digest-md em{color:var(--t3)}
+.footer{margin-top:30px;text-align:center;color:var(--t3);font-size:11px}
+.footer a{color:var(--t3);text-decoration:none;margin:0 8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">📰 AI Briefing</div>
+    <div class="tagline">由 Claude 总结的每日精选简报</div>
+
+    <input id="q" class="search" placeholder="🔎 搜索标题…">
+
+    <h3>话题</h3>
+    <div id="topics">
+      <button class="filter-btn active" data-topic="">全部</button>
+    </div>
+
+    <h3>用户</h3>
+    <select id="userSelect" class="search">
+      <option value="">— 选择用户查看简报 —</option>
+    </select>
+
+    <h3>管理</h3>
+    <a class="filter-btn" href="/admin.html">⚙️ 管理后台</a>
+    <a class="filter-btn" href="/">💬 AI 员工 (Chat)</a>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div>
+        <h1 id="title">最新文章</h1>
+        <div class="meta" id="subtitle"></div>
+      </div>
+      <div class="meta" id="lastUpdate"></div>
+    </div>
+
+    <div class="tab">
+      <button id="tabArticles" class="active">📄 文章流</button>
+      <button id="tabDigests">📨 我的简报</button>
+    </div>
+
+    <div id="content" class="list"><div class="loading">加载中…</div></div>
+
+    <div class="footer">
+      <a href="/admin.html">Admin</a> · <a href="/">Chat</a> · powered by Claude
+    </div>
+  </main>
+</div>
+
+<script>
+const TOPICS = ["ai","markets","china","us","startup","macro","crypto","tech","energy","geopolitics"];
+const state = { mode:"articles", topic:"", q:"", userId:"" };
+
+const topicsDiv = document.getElementById("topics");
+TOPICS.forEach(t => {
+  const b = document.createElement("button");
+  b.className = "filter-btn"; b.dataset.topic = t; b.textContent = t;
+  b.onclick = () => { state.topic = t; refreshFilterUI(); render(); };
+  topicsDiv.appendChild(b);
+});
+topicsDiv.firstElementChild.onclick = () => { state.topic = ""; refreshFilterUI(); render(); };
+
+document.getElementById("q").addEventListener("input", e => {
+  state.q = e.target.value.trim(); clearTimeout(window._t); window._t = setTimeout(render, 250);
+});
+document.getElementById("tabArticles").onclick = () => { state.mode="articles"; refreshTab(); render(); };
+document.getElementById("tabDigests").onclick  = () => { state.mode="digests"; refreshTab(); render(); };
+document.getElementById("userSelect").onchange = e => { state.userId = e.target.value; render(); };
+
+function refreshFilterUI(){
+  [...topicsDiv.children].forEach(b => b.classList.toggle("active", b.dataset.topic === state.topic));
+}
+function refreshTab(){
+  document.getElementById("tabArticles").classList.toggle("active", state.mode==="articles");
+  document.getElementById("tabDigests").classList.toggle("active", state.mode==="digests");
+}
+
+// Load user list (public read).
+fetch("/api/users/list", { headers: { "x-admin-token": localStorage.getItem("adminToken") || "" } })
+  .then(r => r.ok ? r.json() : { users: [] })
+  .then(({ users = [] }) => {
+    const sel = document.getElementById("userSelect");
+    users.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u.id; opt.textContent = u.name ? `${u.name} (${u.email})` : u.email;
+      sel.appendChild(opt);
+    });
+  }).catch(()=>{});
+
+async function render(){
+  const content = document.getElementById("content");
+  content.innerHTML = '<div class="loading">加载中…</div>';
+  document.getElementById("lastUpdate").textContent = new Date().toLocaleString("zh-CN");
+
+  if (state.mode === "articles") {
+    document.getElementById("title").textContent = state.topic ? `话题: ${state.topic}` : "最新文章";
+    const qs = new URLSearchParams({ limit: "30" });
+    if (state.topic) qs.set("topic", state.topic);
+    if (state.q) qs.set("q", state.q);
+    try {
+      const r = await fetch(`/api/articles/list?${qs}`);
+      const { articles = [], summaries = {} } = await r.json();
+      document.getElementById("subtitle").textContent = `${articles.length} 篇`;
+      if (articles.length === 0) { content.innerHTML = '<div class="empty">暂无文章 · 触发一次采集试试</div>'; return; }
+      content.innerHTML = "";
+      for (const a of articles) content.appendChild(articleCard(a, summaries[a.id]));
+    } catch (e) { content.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`; }
+  } else {
+    document.getElementById("title").textContent = "我的简报";
+    if (!state.userId) { content.innerHTML = '<div class="empty">请在左侧选择一位用户</div>'; return; }
+    try {
+      const r = await fetch(`/api/digest/list?user_id=${state.userId}&limit=10`);
+      const { digests = [] } = await r.json();
+      document.getElementById("subtitle").textContent = `共 ${digests.length} 期`;
+      if (digests.length === 0) { content.innerHTML = '<div class="empty">还没有生成过简报</div>'; return; }
+      content.innerHTML = "";
+      for (const d of digests) content.appendChild(digestCard(d));
+    } catch (e) { content.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`; }
+  }
+}
+
+function articleCard(a, s){
+  const el = document.createElement("div");
+  el.className = "card";
+  const title = (s && s.title_cn) || a.title;
+  const meta = [];
+  if (a.author) meta.push(a.author);
+  if (a.published_at) meta.push(new Date(a.published_at).toLocaleString("zh-CN"));
+  const topicsHtml = (a.topics || []).map(t => `<span class="chip">${t}</span>`).join("");
+  const oneLiner = (s && s.one_liner) ? `<div class="one-liner">${escape(s.one_liner)}</div>` : "";
+  const bullets = (s && Array.isArray(s.bullets) && s.bullets.length)
+    ? `<ul class="bullets">${s.bullets.map(b => `<li>${escape(b)}</li>`).join("")}</ul>` : "";
+  el.innerHTML = `
+    <div class="card-title">${a.url ? `<a href="${a.url}" target="_blank">${escape(title)} ↗</a>` : escape(title)}</div>
+    <div class="card-meta">${topicsHtml}<span>${meta.join(" · ")}</span></div>
+    ${oneLiner}${bullets}`;
+  return el;
+}
+
+function digestCard(d){
+  const el = document.createElement("div");
+  el.className = "digest";
+  el.innerHTML = `<div class="card-meta">${new Date(d.created_at).toLocaleString("zh-CN")} · ${d.status} · ${d.article_ids?.length || 0} 条</div>
+    <div class="digest-md">${mdToHtml(d.body_md || "")}</div>`;
+  return el;
+}
+
+function escape(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function mdToHtml(md){
+  const lines = md.split(/\r?\n/); const html = []; let inList = false;
+  const inline = s => s
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  const flush = () => { if (inList) { html.push("</ul>"); inList = false; } };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^---+$/.test(line)) { flush(); html.push("<hr/>"); continue; }
+    let m;
+    if (m = line.match(/^(#{1,4})\s+(.*)$/)) { flush(); html.push(`<h${m[1].length}>${inline(escape(m[2]))}</h${m[1].length}>`); continue; }
+    if (m = line.match(/^>\s+(.*)$/)) { flush(); html.push(`<blockquote>${inline(escape(m[1]))}</blockquote>`); continue; }
+    if (m = line.match(/^[-*]\s+(.*)$/)) { if (!inList) { html.push("<ul>"); inList = true; } html.push(`<li>${inline(escape(m[1]))}</li>`); continue; }
+    if (line === "") { flush(); html.push(""); continue; }
+    flush(); html.push(`<p>${inline(escape(line))}</p>`);
+  }
+  flush(); return html.join("\n");
+}
+
+render();
+setInterval(render, 5 * 60 * 1000); // refresh every 5 min
+</script>
+</body>
+</html>
