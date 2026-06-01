@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Briefing · Admin</title>
+<style>
+:root{--bg-0:#05070e;--bg-1:#0a0f1a;--bg-2:#111827;--bg-3:#1a2234;
+--bd:#1e2d4a;--bd-h:#2a3f66;--t1:#f0f4f8;--t2:#94a3b8;--t3:#64748b;
+--ac:#6c9fff;--ac-g:rgba(108,159,255,.1);--grn:#4ade80;--red:#fb7185;--org:#fbbf24}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC',system-ui,sans-serif;background:var(--bg-0);color:var(--t1);line-height:1.55;padding:30px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;margin-bottom:6px}
+.sub{color:var(--t3);font-size:12px;margin-bottom:20px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:20px}
+.tabs button{padding:10px 18px;border:none;background:none;color:var(--t2);cursor:pointer;font-size:13px;border-bottom:2px solid transparent}
+.tabs button.active{color:var(--ac);border-bottom-color:var(--ac)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:30px}
+.card{background:var(--bg-1);border:1px solid var(--bd);border-radius:10px;padding:18px 20px}
+.card h2{font-size:14px;margin-bottom:14px;color:var(--t1)}
+label{display:block;font-size:11px;color:var(--t3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:1px}
+input,select,textarea{width:100%;padding:8px 10px;background:var(--bg-2);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:13px;font-family:inherit}
+textarea{min-height:80px;font-family:ui-monospace,monospace;font-size:12px}
+button.btn{padding:8px 14px;background:var(--ac);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:500;margin-top:10px}
+button.btn.ghost{background:var(--bg-3);color:var(--t1);border:1px solid var(--bd)}
+button.btn.danger{background:var(--red)}
+.list{list-style:none;margin-top:14px}
+.item{background:var(--bg-2);border:1px solid var(--bd);border-radius:6px;padding:10px 12px;margin-bottom:6px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.item .meta{color:var(--t3);font-size:11px}
+.tag{display:inline-block;padding:2px 6px;border-radius:3px;background:var(--ac-g);color:var(--ac);font-size:10px;margin-right:4px}
+.status-ok{color:var(--grn)}
+.status-fail{color:var(--red)}
+.token-bar{background:var(--bg-1);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:center}
+.token-bar input{flex:1}
+.alert{background:rgba(251,113,133,.1);border:1px solid var(--red);color:var(--red);padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px;display:none}
+.help{font-size:11px;color:var(--t3);margin-top:4px}
+pre.json{background:var(--bg-2);border:1px solid var(--bd);border-radius:6px;padding:10px;font-size:11px;max-height:200px;overflow:auto;color:var(--t2)}
+</style>
+</head>
+<body>
+<h1>⚙️ AI Briefing · 管理后台</h1>
+<div class="sub">配置内容源、用户和分发目标 · 也可手动触发采集 / 总结 / 简报生成</div>
+
+<div class="token-bar">
+  <label style="margin:0;flex-shrink:0">Admin Token</label>
+  <input id="adminToken" type="password" placeholder="x-admin-token (在 Vercel 环境变量中配置)">
+  <button class="btn ghost" onclick="saveToken()">保存</button>
+</div>
+
+<div class="alert" id="alert"></div>
+
+<div class="tabs">
+  <button class="active" data-tab="sources">📡 内容源</button>
+  <button data-tab="users">👥 用户与订阅</button>
+  <button data-tab="actions">🚀 手动触发</button>
+</div>
+
+<!-- ============ SOURCES ============ -->
+<section id="tab-sources">
+  <div class="row">
+    <div class="card">
+      <h2>新增 / 编辑 源</h2>
+      <input type="hidden" id="src-id">
+      <label>类型</label>
+      <select id="src-type">
+        <option value="email">Email Newsletter</option>
+        <option value="rss">RSS Feed</option>
+        <option value="api">第三方 API</option>
+        <option value="scrape">登录抓取</option>
+      </select>
+      <label>名称</label>
+      <input id="src-name" placeholder="The Information Daily">
+      <label>Vendor</label>
+      <input id="src-vendor" placeholder="theinformation / wsj / bloomberg / custom">
+      <label>URL</label>
+      <input id="src-url" placeholder="https://www.theinformation.com/feed?cookie=...">
+      <label>话题 (逗号分隔)</label>
+      <input id="src-topics" placeholder="ai,startup,tech">
+      <label>采集间隔 (分钟)</label>
+      <input id="src-interval" type="number" value="60">
+      <label>Config (JSON)</label>
+      <textarea id="src-config" placeholder='{"cookie": "...", "headers": {}, "max_items_per_poll": 25}'></textarea>
+      <div class="help">RSS 付费源把 cookie 或 Basic Auth 放进 config。Email 源在收到第一封邮件时会自动创建。</div>
+      <button class="btn" onclick="saveSource()">保存</button>
+      <button class="btn ghost" onclick="resetSourceForm()">清空</button>
+    </div>
+    <div class="card">
+      <h2>已配置的源</h2>
+      <ul class="list" id="sources-list"><li class="meta">未加载</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ USERS ============ -->
+<section id="tab-users" style="display:none">
+  <div class="row">
+    <div class="card">
+      <h2>新增 / 编辑 用户</h2>
+      <input type="hidden" id="u-id">
+      <label>Email</label>
+      <input id="u-email" placeholder="user@example.com">
+      <label>名称</label>
+      <input id="u-name" placeholder="张三">
+      <label>角色</label>
+      <select id="u-role"><option value="reader">reader</option><option value="admin">admin</option></select>
+      <label>时区</label>
+      <input id="u-tz" value="Asia/Shanghai">
+
+      <h2 style="margin-top:18px">订阅偏好</h2>
+      <label>话题 (逗号分隔; 留空=全部)</label>
+      <input id="p-topics" placeholder="ai,markets,china">
+      <label>简报风格</label>
+      <select id="p-style">
+        <option value="briefing">briefing — 精简简报</option>
+        <option value="deepdive">deepdive — 深度解读</option>
+        <option value="bullets">bullets — 5 条 bullet</option>
+      </select>
+      <label>简报语言</label>
+      <select id="p-lang"><option value="zh-CN">中文</option><option value="en">English</option></select>
+      <label>频次</label>
+      <select id="p-freq">
+        <option value="daily">每日</option>
+        <option value="hourly">每小时</option>
+        <option value="weekly">每周</option>
+        <option value="realtime">实时</option>
+      </select>
+      <label>每期最大条数</label>
+      <input id="p-max" type="number" value="12">
+
+      <h2 style="margin-top:18px">分发目标 (JSON 数组)</h2>
+      <textarea id="u-targets" placeholder='[
+  {"channel":"email","config":{"email":"user@example.com"}},
+  {"channel":"slack","config":{"webhook_url":"https://hooks.slack.com/..."}},
+  {"channel":"feishu","config":{"webhook_url":"https://open.feishu.cn/..","secret":"opt"}},
+  {"channel":"wecom","config":{"webhook_url":"https://qyapi.weixin.qq.com/..."}}
+]'></textarea>
+      <div class="help">支持 channel: email, slack, discord, feishu, wecom, web</div>
+
+      <button class="btn" onclick="saveUser()">保存</button>
+      <button class="btn ghost" onclick="resetUserForm()">清空</button>
+    </div>
+    <div class="card">
+      <h2>已注册用户</h2>
+      <ul class="list" id="users-list"><li class="meta">未加载</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ACTIONS ============ -->
+<section id="tab-actions" style="display:none">
+  <div class="card">
+    <h2>手动触发管道（用于测试）</h2>
+    <p class="help">这些动作在生产中由 Vercel Cron 自动触发，按下面的按钮可以立即跑一次。</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn" onclick="trigger('/api/ingest/rss')">📡 拉取 RSS 源</button>
+      <button class="btn" onclick="trigger('/api/ingest/scrape')">🕷️ 跑 Scrape Worker</button>
+      <button class="btn" onclick="trigger('/api/summarize/run?limit=10')">🧠 AI 总结一批</button>
+      <button class="btn" onclick="trigger('/api/digest/generate?force=true')">📨 生成简报</button>
+      <button class="btn" onclick="trigger('/api/digest/send')">📤 发送 ready 简报</button>
+      <button class="btn ghost" onclick="trigger('/api/cron/tick?stage=all')">🌀 跑完整流水线</button>
+    </div>
+    <h2 style="margin-top:20px">结果</h2>
+    <pre class="json" id="trigger-out">—</pre>
+  </div>
+</section>
+
+<script>
+let token = localStorage.getItem("adminToken") || "";
+document.getElementById("adminToken").value = token;
+
+function saveToken(){ token = document.getElementById("adminToken").value.trim(); localStorage.setItem("adminToken", token); flash("Token 已保存"); refreshAll(); }
+function flash(msg, ok=true){ const a = document.getElementById("alert"); a.textContent = msg; a.style.display="block"; a.style.borderColor = ok ? "var(--grn)" : "var(--red)"; a.style.color = ok ? "var(--grn)" : "var(--red)"; setTimeout(()=>a.style.display="none", 3000); }
+function headers(){ return { "Content-Type":"application/json", "x-admin-token": token }; }
+async function api(path, opts={}){ const r = await fetch(path, { ...opts, headers: { ...headers(), ...(opts.headers||{}) } }); const data = await r.json().catch(()=>({})); if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data; }
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  ["sources","users","actions"].forEach(t => document.getElementById("tab-"+t).style.display = t === b.dataset.tab ? "block" : "none");
+});
+
+// ---- sources ----
+async function loadSources(){
+  const ul = document.getElementById("sources-list");
+  try { const { sources } = await api("/api/sources/list?limit=200");
+    ul.innerHTML = sources.length ? "" : '<li class="meta">还没有源</li>';
+    for (const s of sources) {
+      const li = document.createElement("li"); li.className = "item";
+      const last = s.last_polled_at ? new Date(s.last_polled_at).toLocaleString("zh-CN") : "—";
+      const status = s.last_status === "ok" ? "status-ok" : s.last_status === "failed" ? "status-fail" : "";
+      li.innerHTML = `<div><span class="tag">${s.type}</span><strong>${s.name}</strong> <span class="meta">${s.vendor||""}</span><div class="meta">${s.url||""} · ${(s.topics||[]).join(",")} · 间隔 ${s.poll_interval_minutes}m · 上次 <span class="${status}">${last}</span></div></div>
+      <div><button class="btn ghost" onclick='editSource(${JSON.stringify(s).replace(/'/g,"\\'")})'>编辑</button></div>`;
+      ul.appendChild(li);
+    }
+  } catch (e) { ul.innerHTML = `<li class="meta">加载失败: ${e.message}</li>`; }
+}
+function editSource(s){
+  document.getElementById("src-id").value = s.id;
+  document.getElementById("src-type").value = s.type;
+  document.getElementById("src-name").value = s.name;
+  document.getElementById("src-vendor").value = s.vendor || "";
+  document.getElementById("src-url").value = s.url || "";
+  document.getElementById("src-topics").value = (s.topics||[]).join(",");
+  document.getElementById("src-interval").value = s.poll_interval_minutes || 60;
+  document.getElementById("src-config").value = JSON.stringify(s.config||{}, null, 2);
+}
+function resetSourceForm(){
+  ["src-id","src-name","src-vendor","src-url","src-topics","src-config"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("src-interval").value = 60;
+}
+async function saveSource(){
+  try {
+    const body = {
+      id: document.getElementById("src-id").value || undefined,
+      type: document.getElementById("src-type").value,
+      name: document.getElementById("src-name").value,
+      vendor: document.getElementById("src-vendor").value,
+      url: document.getElementById("src-url").value,
+      topics: document.getElementById("src-topics").value.split(",").map(s=>s.trim()).filter(Boolean),
+      poll_interval_minutes: Number(document.getElementById("src-interval").value) || 60,
+      config: document.getElementById("src-config").value.trim() ? JSON.parse(document.getElementById("src-config").value) : {},
+    };
+    await api("/api/sources/upsert", { method:"POST", body: JSON.stringify(body) });
+    flash("已保存"); resetSourceForm(); loadSources();
+  } catch (e) { flash(e.message, false); }
+}
+
+// ---- users ----
+async function loadUsers(){
+  const ul = document.getElementById("users-list");
+  try { const { users } = await api("/api/users/list");
+    ul.innerHTML = users.length ? "" : '<li class="meta">还没有用户</li>';
+    for (const u of users) {
+      const li = document.createElement("li"); li.className="item";
+      li.innerHTML = `<div><strong>${u.name || u.email}</strong> <span class="tag">${u.role}</span><div class="meta">${u.email} · ${u.timezone}</div></div>
+      <div><button class="btn ghost" onclick="editUser('${u.id}','${u.email}','${u.name||""}')">编辑</button></div>`;
+      ul.appendChild(li);
+    }
+  } catch (e) { ul.innerHTML = `<li class="meta">加载失败: ${e.message}</li>`; }
+}
+function editUser(id,email,name){
+  document.getElementById("u-id").value = id;
+  document.getElementById("u-email").value = email;
+  document.getElementById("u-name").value = name;
+}
+function resetUserForm(){
+  ["u-id","u-email","u-name","p-topics","u-targets"].forEach(id => document.getElementById(id).value = "");
+}
+async function saveUser(){
+  try {
+    const targetsStr = document.getElementById("u-targets").value.trim();
+    const body = {
+      id: document.getElementById("u-id").value || undefined,
+      email: document.getElementById("u-email").value,
+      name: document.getElementById("u-name").value,
+      role: document.getElementById("u-role").value,
+      timezone: document.getElementById("u-tz").value,
+      preferences: {
+        topics: document.getElementById("p-topics").value.split(",").map(s=>s.trim()).filter(Boolean),
+        summary_style: document.getElementById("p-style").value,
+        summary_language: document.getElementById("p-lang").value,
+        digest_frequency: document.getElementById("p-freq").value,
+        max_items: Number(document.getElementById("p-max").value) || 12,
+      },
+      delivery_targets: targetsStr ? JSON.parse(targetsStr) : undefined,
+    };
+    await api("/api/users/upsert", { method:"POST", body: JSON.stringify(body) });
+    flash("已保存"); resetUserForm(); loadUsers();
+  } catch (e) { flash(e.message, false); }
+}
+
+// ---- actions ----
+async function trigger(path){
+  const out = document.getElementById("trigger-out");
+  out.textContent = "调用中…";
+  try {
+    const data = await api(path, { method: "POST" });
+    out.textContent = JSON.stringify(data, null, 2);
+  } catch (e) { out.textContent = "ERROR: " + e.message; }
+}
+
+function refreshAll(){ loadSources(); loadUsers(); }
+refreshAll();
+</script>
+</body>
+</html>

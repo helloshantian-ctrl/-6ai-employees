@@ -1,4 +1,20 @@
 {
-  "buildCommand": "bash build-secure.sh",
-  "framework": null
+  "framework": null,
+  "buildCommand": "echo 'no build'",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    }
+  ],
+  "crons": [
+    { "path": "/api/cron/tick?stage=ingest", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/tick?stage=summarize", "schedule": "5,20,35,50 * * * *" },
+    { "path": "/api/cron/tick?stage=digest",  "schedule": "0 * * * *" }
+  ]
 }
