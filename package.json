@@ -1,13 +1,13 @@
 {
-  "name": "6ai-employee-system",
+  "name": "vietnam-advisory-platform",
   "version": "1.0.0",
-  "description": "6 AI Employee System powered by Claude — 基于Claude的6个AI员工智能工作台",
+  "description": "Vietnam Overseas Investment Advisory Platform powered by Claude — 越南出海投资顾问智能体平台",
   "private": true,
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'Static site, no build needed'",
     "deploy": "vercel --prod"
   },
-  "keywords": ["ai", "claude", "agent", "productivity"],
+  "keywords": ["ai", "claude", "agent", "vietnam", "investment", "advisory"],
   "license": "MIT"
 }
